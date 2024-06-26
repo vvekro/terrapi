@@ -1,67 +1,92 @@
-#include <Wire.h>
-#include <BH1750.h>
-#include <Adafruit_Sensor.h>
-#include <DHT.h>
-#include <DHT_U.h>
+// Define sensor and output pins
+const int lightSensorPin = A0;
+const int moistureSensorPin = A1;
+const int pumpPin = 2;
+const int lightPin = 3;
 
-// Pin configuration
-#define DHTPIN 2     // Pin connected to the DHT sensor
-#define SOIL_MOISTURE_PIN A0 // Pin connected to the soil moisture sensor
+// Define threshold values
+const int moistureThreshold = 300; // Adjust this value as needed
+const int lightThreshold = 400;    // Adjust this value as needed
 
-// Uncomment the type of DHT sensor in use
-#define DHTTYPE    DHT11     // DHT 11
-//#define DHTTYPE    DHT22   // DHT 22 (AM2302), AM2321
+// Define hysteresis range
+const int hysteresisRange = 50; // Adjust this value as needed
 
-// SENSOR INSTANCES
-BH1750 lightMeter;
-DHT dht(DHTPIN, DHTTYPE);
+// Variables to store sensor values
+int moistureValue = 0;
+int lightValue = 0;
+
+// Variables to store the state of the pump and light
+bool pumpState = false;
+bool lightState = false;
+
+// Timer variables for non-blocking delay
+unsigned long previousMillis = 0;
+const long interval = 1000; // Interval at which to print sensor values (1 second)
 
 void setup() {
+  // Initialize serial communication
   Serial.begin(9600);
-  Wire.begin();
 
-  if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
-    Serial.println("BH1750 Advanced begin");
-  } else {
-    Serial.println("Error initializing BH1750");
-  }
+  // Set pump and light pins as outputs
+  pinMode(pumpPin, OUTPUT);
+  pinMode(lightPin, OUTPUT);
 
-  dht.begin();
+  // Ensure pump and light are initially off
+  digitalWrite(pumpPin, LOW);
+  digitalWrite(lightPin, LOW);
 }
 
 void loop() {
-  // light level in lux
-  float lux = lightMeter.readLightLevel();
+  // Update sensor values
+  updateSensorValues();
 
-  // soil moisture
-  int soilMoistureValue = analogRead(SOIL_MOISTURE_PIN);
+  // Control pump and light based on sensor values
+  controlPump();
+  controlLight();
 
-  // temperature and humidity
-  float temperature = dht.readTemperature();
-  float humidity = dht.readHumidity();
-  while (isnan(temperature)) {
-    float temperature = dht.readTemperature();
-  }
-  while (isnan(humidity)) {
-    float humidity = dht.readHumidity();
-  }
-
-  // Send via the serial port
-  Serial.print("Light:");
-  Serial.print(lux); // in lx
-  Serial.print(",");
-
-  Serial.print("Temperature:");
-  Serial.print(temperature); // in *C
-  Serial.print(",");
-
-  Serial.print("Humidity:");
-  Serial.print(humidity); // in %
-  Serial.print(",");
-
-  Serial.print("Soil Moisture:");
-  Serial.println(soilMoistureValue); // an analog value
-
-  // Delay between readings
-  delay(2000);
+  // Print sensor values to serial monitor every 1 second
+  printSensorValues();
 }
+
+// Function to update sensor values
+void updateSensorValues() {
+  moistureValue = analogRead(moistureSensorPin);
+  lightValue = analogRead(lightSensorPin);
+}
+
+// Function to control the pump based on moisture value with hysteresis
+void controlPump() {
+  if (!pumpState && moistureValue < moistureThreshold - hysteresisRange) {
+    pumpState = true;
+    digitalWrite(pumpPin, HIGH); // Turn pump on
+  } else if (pumpState && moistureValue > moistureThreshold + hysteresisRange) {
+    pumpState = false;
+    digitalWrite(pumpPin, LOW); // Turn pump off
+  }
+}
+
+// Function to control the light based on light value with hysteresis
+void controlLight() {
+  if (!lightState && lightValue < lightThreshold - hysteresisRange) {
+    lightState = true;
+    digitalWrite(lightPin, HIGH); // Turn light on
+  } else if (lightState && lightValue > lightThreshold + hysteresisRange) {
+    lightState = false;
+    digitalWrite(lightPin, LOW); // Turn light off
+  }
+}
+
+// Function to print sensor values to the serial monitor every 1 second
+void printSensorValues() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    // Print sensor values to serial monitor
+    Serial.print("Moisture:");
+    Serial.print(moistureValue);
+    Serial.print(",Light:");
+    Serial.println(lightValue);
+  }
+}
+

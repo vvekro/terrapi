@@ -20,30 +20,30 @@ if __name__ == "__main__":
     write_api = influx_client.write_api(write_options=SYNCHRONOUS)
 
     bucket = "sensor_data"
-
     while True:
         try:
-            serial_data = ser.readline()
-            print(serial_data)
+            serial_data = ser.readline() #.strip("")
 
             if not serial_data:
                 continue
 
-            line = serial_data.decode('utf-8').strip()
+            line = serial_data.decode('utf-8').strip(" ")
+            #print(line)
         
-            # Example line: "Moisture:500,Light:300,Temperature:200"
+            # Expected format: "Moisture:500,Light:300"
             parts = line.split(',')
             moisture = int(parts[0].split(':')[1])
-            light = float(parts[1].split(':')[1])
-            temperature = float(parts[2].split(':')[1])
+            light = int(parts[1].split(':')[1])
+            # temperature = float(parts[2].split(':')[1])
         
             # Send data to InfluxDB
-            send_to_influx(bucket, 'soil_moisture', 'moisture_level', moisture)
-            send_to_influx(bucket, 'light', 'light_level', light)
-            send_to_influx(bucket, 'ambient_temperature', 'temperature', temperature)
+#            send_to_influx(bucket, 'soil_moisture', 'moisture_level', moisture)
+#            send_to_influx(bucket, 'light', 'light_level', light)
+            # send_to_influx(bucket, 'ambient_temperature', 'temperature', temperature)
         
-            print(f"Moisture: {moisture}, Light: {light}, Temperature: {temperature}")
+            print(f"Moistureprint: {moisture}, Lightprint: {light}") #, Temperature: {temperature}")
 
         except Exception as e:
-            print(f"\nERROR:\n {e}")
+            #print(f"\nERROR:\n {e}")
+            pass
 
